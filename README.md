@@ -144,6 +144,44 @@ The server provides structured logging with the following levels:
 - `[WARN]`: Warning messages
 - `[ERROR]`: Error messages
 
+## Frontend
+
+A Vue 3 + Vite + TypeScript frontend is provided in the `frontend/` directory for interacting with the WebSocket proxy.
+
+### Quick Start
+
+```bash
+# Install dependencies
+cd frontend
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173` and automatically connects to the backend WebSocket proxy.
+
+### Frontend Features
+
+- 🎨 Modern Vue 3 UI with responsive design
+- 🔌 WebSocket service with auto-reconnection and message queuing
+- 🎙️ Recording controls and audio file upload
+- 📊 Real-time transcript display
+- 💾 Connection status indicator
+- 📘 Full TypeScript support
+
+### Frontend Configuration
+
+Edit `frontend/.env.local` to configure the WebSocket backend URL:
+
+```env
+VITE_WS_PROTOCOL=ws
+VITE_WS_HOST=localhost
+VITE_WS_PORT=8080
+```
+
+For more details, see [frontend/README.md](./frontend/README.md)
+
 ## Development
 
 ### Project Structure
@@ -162,6 +200,12 @@ The server provides structured logging with the following levels:
 │   │   └── handler.go        # WebSocket handler
 │   └── server/
 │       └── server.go         # Server implementation
+├── frontend/                 # Vue 3 + Vite + TypeScript frontend
+│   ├── src/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   └── README.md
 ├── go.mod
 ├── go.sum
 ├── .env.example
@@ -180,25 +224,84 @@ go get <package-url>
 go test ./...
 ```
 
+## Running Backend and Frontend Together
+
+To run the full application locally:
+
+### Terminal 1: Backend Server
+
+```bash
+# Set up environment
+cp .env.example .env
+# Edit .env with your Aliyun API credentials
+
+# Run the Go backend
+go run ./cmd/server
+```
+
+You should see:
+```
+[INFO]  loaded configuration:
+[INFO]    APIKey: sk-****-****
+[INFO]    BaseURL: wss://dashscope.aliyuncs.com/api-ws/v1/realtime
+[INFO]    Model: qwen3-asr-flash-realtime
+[INFO]    ListenAddr: localhost:8080
+[INFO]  server started successfully
+```
+
+### Terminal 2: Frontend Application
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+You should see:
+```
+  VITE v4.4.9  ready in 123 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  press h to show help
+```
+
+Open your browser to `http://localhost:5173` - the frontend will automatically connect to the backend.
+
 ## Troubleshooting
 
-### Server fails to start
+### Backend fails to start
 
-1. Check that the configured `LISTEN_ADDR` port is available
-2. Verify the `DASHSCOPE_API_KEY` is set in `.env` or environment
-3. Check logs for more details
+1. Check that port 8080 is not in use: `lsof -i :8080`
+2. Verify the `DASHSCOPE_API_KEY` is set in `.env`
+3. Check that `.env` exists: `test -f .env && echo "exists" || echo "not found"`
 
-### WebSocket connection fails
+### Frontend fails to connect
 
-1. Ensure the server is running and reachable
-2. Verify the WebSocket URL is correct
-3. Check browser console for connection errors
+1. Ensure backend is running: `curl http://localhost:8080/health`
+2. Check browser console (F12) for connection errors
+3. Verify `VITE_WS_*` environment variables are correct in `frontend/.env.local`
+4. Try refreshing the page with Ctrl+Shift+R
 
-### Messages not being processed
+### WebSocket connection fails in production
 
-1. Verify the message format matches the API specification
-2. Check server logs for error messages
-3. Ensure the API key is valid
+1. Use `wss://` protocol if backend uses TLS
+2. Ensure CORS is properly configured
+3. Check WebSocket proxy headers
+
+### Dependencies installation fails
+
+**Backend**: 
+```bash
+go mod tidy
+go mod download
+```
+
+**Frontend**:
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
 
 ## Next Steps
 
@@ -208,6 +311,8 @@ go test ./...
 - [ ] Add metrics and monitoring
 - [ ] Add request/response validation
 - [ ] Implement TLS support
+- [ ] Add frontend audio recording
+- [ ] Implement real-time speech-to-text display
 
 ## References
 
