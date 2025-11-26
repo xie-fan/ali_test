@@ -251,6 +251,44 @@ The server provides structured logging with the following levels:
 - `[WARN]`: Warning messages
 - `[ERROR]`: Error messages
 
+## Frontend
+
+A Vue 3 + Vite + TypeScript frontend is provided in the `frontend/` directory for interacting with the WebSocket proxy.
+
+### Quick Start
+
+```bash
+# Install dependencies
+cd frontend
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173` and automatically connects to the backend WebSocket proxy.
+
+### Frontend Features
+
+- 🎨 Modern Vue 3 UI with responsive design
+- 🔌 WebSocket service with auto-reconnection and message queuing
+- 🎙️ Recording controls and audio file upload
+- 📊 Real-time transcript display
+- 💾 Connection status indicator
+- 📘 Full TypeScript support
+
+### Frontend Configuration
+
+Edit `frontend/.env.local` to configure the WebSocket backend URL:
+
+```env
+VITE_WS_PROTOCOL=ws
+VITE_WS_HOST=localhost
+VITE_WS_PORT=8080
+```
+
+For more details, see [frontend/README.md](./frontend/README.md)
+
 ## Development
 
 ### Project Structure
@@ -271,7 +309,13 @@ The server provides structured logging with the following levels:
 │   │   ├── relay_test.go              # Relay unit tests
 │   │   └── messages.go                # Message protocol definitions
 │   └── server/
-│       └── server.go                  # Server implementation
+│       └── server.go         # Server implementation
+├── frontend/                 # Vue 3 + Vite + TypeScript frontend
+│   ├── src/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   └── README.md
 ├── go.mod
 ├── go.sum
 ├── .env.example
@@ -305,159 +349,95 @@ Unit tests for message translation are included:
 go test ./...
 ```
 
-To run tests with verbose output:
+## Running Backend and Frontend Together
+
+To run the full application locally:
+
+### Terminal 1: Backend Server
 
 ```bash
-go test -v ./...
-```
-
-Tests cover:
-- Config message translation to Ali's `session.update`
-- Audio chunk message validation and base64 encoding
-- Stop message translation to Ali's `input_audio_buffer.commit`
-- Invalid base64 rejection
-- Transcript response translation
-- Event ID generation
-
-## API Key Configuration
-
-The service requires a valid Aliyun DashScope API key. There are multiple ways to provide it:
-
-### Option 1: Environment Variable (Recommended)
-
-```bash
-export DASHSCOPE_API_KEY="sk-your-actual-key"
-go run ./cmd/server
-```
-
-### Option 2: .env File
-
-```bash
+# Set up environment
 cp .env.example .env
-# Edit .env and set DASHSCOPE_API_KEY=sk-your-actual-key
-source .env
+# Edit .env with your Aliyun API credentials
+
+# Run the Go backend
 go run ./cmd/server
 ```
 
-### Option 3: Docker Environment
+You should see:
+```
+[INFO]  loaded configuration:
+[INFO]    APIKey: sk-****-****
+[INFO]    BaseURL: wss://dashscope.aliyuncs.com/api-ws/v1/realtime
+[INFO]    Model: qwen3-asr-flash-realtime
+[INFO]    ListenAddr: localhost:8080
+[INFO]  server started successfully
+```
+
+### Terminal 2: Frontend Application
 
 ```bash
-docker run -e DASHSCOPE_API_KEY="sk-your-actual-key" \
-  -p 8080:8080 \
-  your-image:latest
+cd frontend
+npm install
+npm run dev
 ```
 
-To get your API key:
-1. Visit [Aliyun Model Studio](https://help.aliyun.com/zh/model-studio/get-api-key)
-2. Create an API key
-3. Copy the key starting with `sk-`
+You should see:
+```
+  VITE v4.4.9  ready in 123 ms
 
-## End-to-End Smoke Test
-
-### Prerequisites
-
-1. Go 1.21+
-2. Valid Aliyun DashScope API key
-3. PCM audio file for testing
-
-### Running the Smoke Test
-
-1. Start the server:
-```bash
-export DASHSCOPE_API_KEY="sk-your-actual-key"
-go run ./cmd/server
+  ➜  Local:   http://localhost:5173/
+  ➜  press h to show help
 ```
 
-2. In another terminal, run the Python test client:
-```bash
-pip install websocket-client
-export DASHSCOPE_API_KEY="sk-your-actual-key"
-python test.py
-```
-
-The test.py script:
-- Connects to the WebSocket server
-- Sends session configuration
-- Streams PCM audio from `your_audio_file.pcm`
-- Receives transcription results
-- Closes connection gracefully
-
-3. Expected output:
-```
-[INFO]  Connected to server.
-[INFO]  Sending event: {...}
-[INFO]  Sending audio event: event_xyz
-[INFO]  Received event: {...transcript...}
-[INFO]  Final transcript: recognized text
-```
-
-### Manual WebSocket Test with curl and wscat
-
-Install wscat:
-```bash
-npm install -g wscat
-```
-
-Test connection:
-```bash
-wscat -c ws://localhost:8080/ws
-```
-
-Send a config message:
-```json
-{"type":"config","payload":{"modalities":["text"],"input_audio_format":"pcm","sample_rate":16000,"input_audio_transcription":{"language":"zh"}}}
-```
-
-### Debugging Tips
-
-1. **Server logs**: Check for connection and relay errors
-2. **Ali connection issues**: Verify DASHSCOPE_API_KEY and DASHSCOPE_BASE_URL
-3. **Message validation**: Ensure audio is valid base64
-4. **Timeouts**: Check network connectivity to Ali's servers
+Open your browser to `http://localhost:5173` - the frontend will automatically connect to the backend.
 
 ## Troubleshooting
 
-### Server fails to start
+### Backend fails to start
 
-1. Check that the configured `LISTEN_ADDR` port is available
-2. Verify the `DASHSCOPE_API_KEY` is set in `.env` or environment
-3. Check logs for more details
+1. Check that port 8080 is not in use: `lsof -i :8080`
+2. Verify the `DASHSCOPE_API_KEY` is set in `.env`
+3. Check that `.env` exists: `test -f .env && echo "exists" || echo "not found"`
 
-### WebSocket connection fails
+### Frontend fails to connect
 
-1. Ensure the server is running and reachable
-2. Verify the WebSocket URL is correct
-3. Check browser console for connection errors
+1. Ensure backend is running: `curl http://localhost:8080/health`
+2. Check browser console (F12) for connection errors
+3. Verify `VITE_WS_*` environment variables are correct in `frontend/.env.local`
+4. Try refreshing the page with Ctrl+Shift+R
 
-### Messages not being processed
+### WebSocket connection fails in production
 
-1. Verify the message format matches the API specification
-2. Check server logs for error messages
-3. Ensure the API key is valid
+1. Use `wss://` protocol if backend uses TLS
+2. Ensure CORS is properly configured
+3. Check WebSocket proxy headers
 
-## Features Implemented
+### Dependencies installation fails
 
-- [x] Bidirectional WebSocket relay between frontend clients and Ali ASR
-- [x] Message translation (config → session.update, audio → input_audio_buffer.append, stop → input_audio_buffer.commit)
-- [x] Base64 validation for audio chunks
-- [x] Per-client Ali connections with full isolation
-- [x] Concurrent read/write pumps with goroutines
-- [x] Heartbeat mechanism (30s pings) to keep connections alive
-- [x] Error propagation and logging
-- [x] Automatic reconnection to Ali service (3 attempts with 1s delay)
-- [x] Transcript forwarding from Ali to browser
-- [x] Unit tests for message translation
-- [x] Complete protocol documentation
+**Backend**: 
+```bash
+go mod tidy
+go mod download
+```
 
-## Potential Future Improvements
+**Frontend**:
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
 
-- [ ] Add metrics and monitoring (Prometheus)
-- [ ] Implement TLS support for production
-- [ ] Add connection pooling for better resource management
-- [ ] Support for multiple languages and configurations per client
-- [ ] Circuit breaker pattern for Ali API failures
-- [ ] Message compression for large audio chunks
-- [ ] Rate limiting per client
+## Next Steps
+
+- [ ] Implement proxy forwarding to Aliyun API
+- [ ] Add message routing and transformation
+- [ ] Implement error handling and recovery
+- [ ] Add metrics and monitoring
+- [ ] Add request/response validation
+- [ ] Implement TLS support
+- [ ] Add frontend audio recording
+- [ ] Implement real-time speech-to-text display
 
 ## References
 
