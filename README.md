@@ -90,11 +90,11 @@ const ws = new WebSocket('ws://localhost:8080/ws');
 
 ws.onopen = () => {
     console.log('Connected to proxy');
-    // Send session.update event
+    
+    // Step 1: Send config
     ws.send(JSON.stringify({
-        event_id: "event_123",
-        type: "session.update",
-        session: {
+        type: "config",
+        payload: {
             modalities: ["text"],
             input_audio_format: "pcm",
             sample_rate: 16000,
@@ -108,10 +108,28 @@ ws.onopen = () => {
             }
         }
     }));
+    
+    // Step 2: Send audio chunks
+    const audioChunk = btoa('...PCM bytes...');
+    ws.send(JSON.stringify({
+        type: "audio_chunk",
+        payload: {
+            audio: audioChunk
+        }
+    }));
+    
+    // Step 3: Signal end
+    ws.send(JSON.stringify({
+        type: "stop",
+        payload: {}
+    }));
 };
 
 ws.onmessage = (event) => {
-    console.log('Received:', JSON.parse(event.data));
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'transcript') {
+        console.log(`[${msg.data.status}] ${msg.data.text}`);
+    }
 };
 
 ws.onerror = (error) => {
@@ -161,6 +179,44 @@ The server provides structured logging with the following levels:
 - `[WARN]`: Warning messages
 - `[ERROR]`: Error messages
 
+## Frontend
+
+A Vue 3 + Vite + TypeScript frontend is provided in the `frontend/` directory for interacting with the WebSocket proxy.
+
+### Quick Start
+
+```bash
+# Install dependencies
+cd frontend
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173` and automatically connects to the backend WebSocket proxy.
+
+### Frontend Features
+
+- 🎨 Modern Vue 3 UI with responsive design
+- 🔌 WebSocket service with auto-reconnection and message queuing
+- 🎙️ Recording controls and audio file upload
+- 📊 Real-time transcript display
+- 💾 Connection status indicator
+- 📘 Full TypeScript support
+
+### Frontend Configuration
+
+Edit `frontend/.env.local` to configure the WebSocket backend URL:
+
+```env
+VITE_WS_PROTOCOL=ws
+VITE_WS_HOST=localhost
+VITE_WS_PORT=8080
+```
+
+For more details, see [frontend/README.md](./frontend/README.md)
+
 ## Development
 
 ### Project Structure
@@ -202,6 +258,18 @@ The server provides structured logging with the following levels:
 └── README.md
 ```
 
+### Key Components
+
+- **handler.go**: Manages WebSocket connections from clients, creates relays
+- **relay.go**: Bidirectional relay between frontend client and Ali ASR service
+  - `ProcessClientMessage()`: Translates frontend messages to Ali protocol
+  - `aliReadPump()`: Receives messages from Ali and forwards to client
+  - `aliWritePump()`: Sends queued Ali messages
+  - `heartbeatPump()`: Keeps connection alive with periodic pings
+  - Auto-reconnection with exponential backoff
+- **messages.go**: Protocol definitions for both frontend and Ali APIs
+- **relay_test.go**: Comprehensive unit tests for message translation
+
 ### Adding Dependencies
 
 ```bash
@@ -229,23 +297,39 @@ npm run test:ui
 
 ## Troubleshooting
 
-### Server fails to start
+### Backend fails to start
 
-1. Check that the configured `LISTEN_ADDR` port is available
-2. Verify the `DASHSCOPE_API_KEY` is set in `.env` or environment
-3. Check logs for more details
+1. Check that port 8080 is not in use: `lsof -i :8080`
+2. Verify the `DASHSCOPE_API_KEY` is set in `.env`
+3. Check that `.env` exists: `test -f .env && echo "exists" || echo "not found"`
 
-### WebSocket connection fails
+### Frontend fails to connect
 
-1. Ensure the server is running and reachable
-2. Verify the WebSocket URL is correct
-3. Check browser console for connection errors
+1. Ensure backend is running: `curl http://localhost:8080/health`
+2. Check browser console (F12) for connection errors
+3. Verify `VITE_WS_*` environment variables are correct in `frontend/.env.local`
+4. Try refreshing the page with Ctrl+Shift+R
 
-### Messages not being processed
+### WebSocket connection fails in production
 
-1. Verify the message format matches the API specification
-2. Check server logs for error messages
-3. Ensure the API key is valid
+1. Use `wss://` protocol if backend uses TLS
+2. Ensure CORS is properly configured
+3. Check WebSocket proxy headers
+
+### Dependencies installation fails
+
+**Backend**: 
+```bash
+go mod tidy
+go mod download
+```
+
+**Frontend**:
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
 
 ## Features Implemented
 
@@ -268,6 +352,8 @@ npm run test:ui
 - [ ] Add metrics and monitoring
 - [ ] Add request/response validation
 - [ ] Implement TLS support
+- [ ] Add frontend audio recording
+- [ ] Implement real-time speech-to-text display
 
 ## References
 
