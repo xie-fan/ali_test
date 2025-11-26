@@ -1,0 +1,21 @@
+{
+  "name": "ws-proxy-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for WebSocket Proxy with Qwen Real-time API",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "vite": "^4.4.9",
+    "vitest": "^0.34.4"
+  }
+}

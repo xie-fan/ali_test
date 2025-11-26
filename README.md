@@ -9,11 +9,16 @@ This is a Go backend service that acts as a WebSocket proxy for the Aliyun DashS
 - **internal/logger**: Structured logging utilities
 - **internal/websocket**: WebSocket connection handling
 - **internal/server**: HTTP server setup and lifecycle management
+- **frontend**: Vue 3 microphone capture application
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design documentation.
 
 ## Prerequisites
 
 - Go 1.21 or higher
+- Node.js 16 or higher (for frontend development)
 - Aliyun DashScope API key
+- Modern web browser with Web Audio API support
 
 ## Getting Started
 
@@ -57,6 +62,18 @@ The server will start and listen on the configured address. You should see outpu
 [INFO]  health check endpoint: http://localhost:8080/health
 [INFO]  server started successfully
 ```
+
+### 4. Run the Frontend (Optional)
+
+In a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173` and will automatically connect to the backend WebSocket at `ws://localhost:8080/ws`.
 
 ## Endpoints
 
@@ -152,19 +169,36 @@ The server provides structured logging with the following levels:
 .
 ├── cmd/
 │   └── server/
-│       └── main.go           # Entry point
+│       └── main.go                 # Entry point
 ├── internal/
 │   ├── config/
-│   │   └── config.go         # Configuration management
+│   │   └── config.go               # Configuration management
 │   ├── logger/
-│   │   └── logger.go         # Logging utilities
+│   │   └── logger.go               # Logging utilities
 │   ├── websocket/
-│   │   └── handler.go        # WebSocket handler
+│   │   └── handler.go              # WebSocket handler
 │   └── server/
-│       └── server.go         # Server implementation
+│       └── server.go               # Server implementation
+├── frontend/                        # Vue 3 frontend app
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── MicrophoneCapture.vue
+│   │   ├── services/
+│   │   │   ├── microphoneService.js
+│   │   │   └── websocketService.js
+│   │   ├── utils/
+│   │   │   ├── pcm.js
+│   │   │   └── pcm.test.js
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── vitest.config.js
 ├── go.mod
 ├── go.sum
 ├── .env.example
+├── ARCHITECTURE.md
 └── README.md
 ```
 
@@ -174,10 +208,23 @@ The server provides structured logging with the following levels:
 go get <package-url>
 ```
 
-### Running Tests (When Available)
+### Running Tests
 
+Backend tests:
 ```bash
 go test ./...
+```
+
+Frontend tests:
+```bash
+cd frontend
+npm test
+```
+
+Frontend tests with UI:
+```bash
+cd frontend
+npm run test:ui
 ```
 
 ## Troubleshooting
@@ -200,7 +247,20 @@ go test ./...
 2. Check server logs for error messages
 3. Ensure the API key is valid
 
-## Next Steps
+## Features Implemented
+
+- ✅ Vue 3 microphone capture component with real-time UI
+- ✅ WebSocket connection management with auto-reconnect
+- ✅ PCM audio processing (16kHz mono, 16-bit conversion)
+- ✅ Audio resampling using linear interpolation
+- ✅ Base64 encoding of audio chunks
+- ✅ Real-time transcript display
+- ✅ Volume meter and audio statistics
+- ✅ Permission handling with user-friendly errors
+- ✅ Comprehensive test suite for PCM utilities
+- ✅ Responsive, beautiful UI with status indicators
+
+## Next Steps (Backend)
 
 - [ ] Implement proxy forwarding to Aliyun API
 - [ ] Add message routing and transformation
@@ -211,9 +271,13 @@ go test ./...
 
 ## References
 
+- [ARCHITECTURE.md](./ARCHITECTURE.md): Detailed system architecture and design documentation
+- [frontend/README.md](./frontend/README.md): Frontend-specific documentation and troubleshooting
 - [Aliyun DashScope Documentation](https://help.aliyun.com/zh/model-studio)
 - [Qwen Real-time API Guide](https://help.aliyun.com/zh/model-studio/user-guide/qwen-realtime-api)
 - [Gorilla WebSocket](https://github.com/gorilla/websocket)
+- [Vue 3 Documentation](https://vuejs.org/)
+- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 
 ## License
 
