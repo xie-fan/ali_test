@@ -1,226 +1,221 @@
-# Vue 3 + Vite + TypeScript Frontend for Qwen Real-Time API
+# Qwen Real-time API Frontend
 
-This is a Vue 3 frontend application built with Vite and TypeScript for interacting with the Qwen Real-Time API through the WebSocket proxy backend.
+Vue 3 frontend application for real-time microphone capture and transcription using the Qwen API through a WebSocket proxy.
 
 ## Features
 
-- ✨ Vue 3 with Composition API and `<script setup>` syntax
-- 🎨 Vite for fast development and optimized builds
-- 📘 TypeScript for type safety
-- 🔌 WebSocket service with auto-reconnection and message queuing
-- 🎙️ Real-time transcription display
-- 📁 Audio file upload support
-- 🔴 Recording controls
-- 📊 Connection status indicator
-- 🎯 Responsive design
+- 🎤 Real-time microphone capture using Web Audio API
+- 📝 Live transcription display with streaming updates
+- 🔊 Volume meter for audio monitoring
+- 🎛️ PCM audio processing (16kHz mono, 16-bit)
+- 📊 Audio statistics (duration, chunks sent)
+- 🛡️ Permission handling with user-friendly error messages
+- 🎨 Beautiful, responsive UI with real-time status indicators
+- ♿ Accessible controls with disabled states during connection
 
-## Project Structure
+## Quick Start
 
-```
-frontend/
-├── src/
-│   ├── components/          # Vue components
-│   │   ├── ConnectionStatus.vue    # Connection status indicator
-│   │   ├── RecordButton.vue        # Recording control button
-│   │   ├── FileUpload.vue          # File upload component
-│   │   └── TranscriptPanel.vue     # Transcript display
-│   ├── composables/         # Vue composables
-│   │   └── useWebSocket.ts  # WebSocket hook
-│   ├── services/            # Business logic
-│   │   └── websocket.ts     # WebSocket service with auto-reconnect
-│   ├── styles/              # Global styles
-│   │   └── main.css         # Global CSS and variables
-│   ├── types/               # TypeScript types
-│   │   └── websocket.ts     # WebSocket types
-│   ├── App.vue              # Root component
-│   └── main.ts              # Application entry point
-├── index.html               # HTML entry point
-├── vite.config.ts           # Vite configuration
-├── tsconfig.json            # TypeScript configuration
-├── package.json             # Dependencies and scripts
-└── README.md                # This file
-```
+### Prerequisites
 
-## Prerequisites
+- Node.js 16 or higher
+- npm or yarn
+- Running WebSocket proxy server on `localhost:8080`
 
-- Node.js 16.x or higher
-- npm 7.x or higher
-- Backend server running on localhost:8080 (or configured URL)
-
-## Getting Started
-
-### 1. Install Dependencies
+### Installation
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 2. Configure Environment (Optional)
+### Development
 
-Copy the environment example and update as needed:
-
-```bash
-cp .env.example .env.local
-```
-
-The default configuration connects to `ws://localhost:8080/ws`. To change this:
-
-```env
-VITE_WS_PROTOCOL=ws
-VITE_WS_HOST=localhost
-VITE_WS_PORT=8080
-```
-
-### 3. Run Development Server
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`
 
-### 4. Build for Production
+### Build
+
+Create production build:
 
 ```bash
 npm run build
 ```
 
-The optimized build will be created in the `dist/` directory.
-
-### 5. Preview Production Build
+Preview production build:
 
 ```bash
 npm run preview
 ```
 
-## Available Scripts
+## Configuration
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production with type checking
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Run ESLint and auto-fix issues
-- `npm run type-check` - Check TypeScript types without emitting
+Environment variables can be set in `.env` or `.env.local`:
 
-## WebSocket Service
+```env
+VITE_WS_URL=ws://localhost:8080/ws
+```
 
-### Basic Usage
+## Testing
 
-The WebSocket service is automatically initialized and connected when components mount.
+Run tests:
 
-```typescript
-import { useWebSocket } from '@/composables/useWebSocket'
+```bash
+npm test
+```
 
-export default {
-  setup() {
-    const { 
-      connectionStatus,  // 'connected' | 'connecting' | 'disconnected'
-      lastMessage,       // Last received message
-      error,             // Error object if any
-      queuedMessages,    // Number of queued messages
-      connect,           // Manual connect function
-      disconnect,        // Disconnect function
-      send,              // Send message function
-    } = useWebSocket()
+Run tests with UI:
 
-    return {
-      connectionStatus,
-      lastMessage,
-      error,
-      queuedMessages,
-      connect,
-      disconnect,
-      send,
-    }
-  },
+```bash
+npm run test:ui
+```
+
+## Project Structure
+
+```
+src/
+├── components/
+│   └── MicrophoneCapture.vue    # Main capture component
+├── services/
+│   ├── microphoneService.js     # Audio capture handling
+│   └── websocketService.js      # WebSocket connection management
+├── utils/
+│   ├── pcm.js                   # PCM audio processing utilities
+│   └── pcm.test.js              # PCM utility tests
+├── App.vue                       # Root Vue component
+└── main.js                       # Application entry point
+```
+
+## Component Features
+
+### MicrophoneCapture Component
+
+The main component handles:
+
+- **Start/Stop Recording**: Toggle microphone capture
+- **Live Transcription**: Display real-time transcription updates
+- **Volume Meter**: Visual feedback of microphone input level
+- **Connection Status**: Shows current connection state
+- **Statistics**: Displays audio duration and chunks sent
+- **Error Handling**: Shows user-friendly error messages
+
+### Microphone Service
+
+Handles audio capture with:
+
+- Permission requests from user
+- Audio context initialization
+- ScriptProcessor for raw audio data
+- Audio buffer accumulation
+- Chunk generation at specified intervals (default: 100ms)
+- Volume detection for UI feedback
+- Error handling for common permission issues
+
+### WebSocket Service
+
+Manages connection with:
+
+- Auto-reconnection (via message queue)
+- Event-based architecture
+- Message formatting per Qwen API spec
+- Session management
+- Audio input streaming
+
+### PCM Audio Processing
+
+Utilities for converting audio data:
+
+- **float32ToPcm16**: Convert float32 to 16-bit signed integers
+- **resampleAudio**: Resample to target rate using linear interpolation
+- **stereoToMono**: Convert stereo to mono
+- **processAudioChunk**: End-to-end processing with resampling
+- **uint8ArrayToBase64**: Encode for transmission
+- Comprehensive test suite with edge cases
+
+## WebSocket Message Format
+
+The component sends audio data in the following format:
+
+```json
+{
+  "event_id": "event_123",
+  "type": "input_audio_buffer.append",
+  "audio": "base64-encoded-pcm-data"
 }
 ```
 
-### Features
+And receives transcription updates like:
 
-- **Auto-reconnection**: Automatically reconnects on connection loss with exponential backoff
-- **Message Queuing**: Messages sent while disconnected are queued and sent when reconnected
-- **Event Emitters**: Simple event system for connection, disconnection, messages, and errors
-- **Type Safe**: Full TypeScript support
-
-### Sending Messages
-
-```typescript
-const { send } = useWebSocket()
-
-// Send a message
-send({
-  type: 'session.update',
-  session: {
-    modalities: ['text'],
-    input_audio_format: 'pcm',
-    sample_rate: 16000,
-  },
-})
-```
-
-## Components
-
-### ConnectionStatus
-
-Displays current WebSocket connection status with indicator.
-
-### RecordButton
-
-Start/stop audio recording. Disabled when not connected.
-
-### FileUpload
-
-Upload audio files with drag-and-drop support.
-
-### TranscriptPanel
-
-Display transcriptions and messages from the server in real-time.
-
-## Styling
-
-Global styling uses CSS variables for easy theming:
-
-```css
-:root {
-  --color-primary: #3b82f6;
-  --color-success: #10b981;
-  --color-error: #ef4444;
-  --color-text: #1f2937;
-  --color-bg: #ffffff;
-  /* ... more variables ... */
+```json
+{
+  "type": "response.text.delta",
+  "delta": "transcribed text"
 }
 ```
 
-To customize, edit `src/styles/main.css`.
+## Browser Support
+
+- Chrome/Edge 88+
+- Firefox 87+
+- Safari 14+
+- Requires HTTPS in production (WebSocket and getUserMedia)
 
 ## Troubleshooting
 
-### WebSocket Connection Fails
+### Microphone Permission Denied
 
-1. Ensure the backend server is running on the configured URL
-2. Check browser console for error messages
-3. Verify the correct `VITE_WS_*` environment variables are set
-4. Try clearing browser cache and restarting the dev server
+1. Check browser permissions (usually shown in address bar)
+2. For local testing, use localhost or file://
+3. For production, must use HTTPS
 
-### Build Fails
+### WebSocket Connection Failed
 
-1. Run `npm run type-check` to identify TypeScript errors
-2. Ensure all dependencies are installed: `npm install`
-3. Check Node.js version is 16.x or higher: `node --version`
+1. Verify proxy server is running on `localhost:8080`
+2. Check browser console for connection errors
+3. Ensure WebSocket URL is correct in `.env`
 
-### Styling Issues
+### No Transcription Results
 
-1. Clear browser cache (Ctrl+Shift+Delete)
-2. Hard refresh the page (Ctrl+Shift+R)
-3. Check if CSS variables are loaded in DevTools
+1. Check microphone is actually capturing audio (volume meter should show activity)
+2. Verify backend is receiving audio chunks
+3. Check browser console for error messages
+4. Ensure language setting matches API expectations
 
-## Development Tips
+### Audio Quality Issues
 
-- Use Vue DevTools browser extension for component debugging
-- Check browser console for WebSocket events and messages
-- Use TypeScript strict mode to catch errors early
-- Run `npm run lint` before committing code
+1. Check microphone input levels (volume meter)
+2. Verify 16kHz mono PCM format is being sent
+3. Check for dropped audio chunks in network tab
+4. Reduce microphone noise and echo with device settings
+
+## Debug Mode
+
+Press 'D' key to toggle debug information display including:
+
+- Microphone status
+- Last received message type
+- Audio context state
+- More technical details
+
+## Performance Notes
+
+- Audio chunks generated every 100ms (configurable)
+- Resampling done in real-time on audio thread
+- Base64 encoding adds ~33% to transmission size
+- Typical bandwidth: ~19 KB/s at 16kHz mono 16-bit
+
+## API Specification Reference
+
+Based on Aliyun Qwen Real-time API:
+- Sample rate: 16000 Hz
+- Channels: 1 (mono)
+- Bit depth: 16-bit signed integers
+- Format: PCM
+- Encoding for transport: Base64
 
 ## License
 

@@ -8,30 +8,21 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-.DS_Store
 dist
 dist-ssr
-coverage
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# IDE specific
-*.swp
-*.swo
-*.swn
-*~
-
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Test coverage
+coverage
+.nyc_output

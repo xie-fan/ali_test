@@ -9,11 +9,16 @@ This is a Go backend service that acts as a WebSocket proxy for the Aliyun DashS
 - **internal/logger**: Structured logging utilities
 - **internal/websocket**: WebSocket connection handling
 - **internal/server**: HTTP server setup and lifecycle management
+- **frontend**: Vue 3 microphone capture application
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design documentation.
 
 ## Prerequisites
 
 - Go 1.21 or higher
+- Node.js 16 or higher (for frontend development)
 - Aliyun DashScope API key
+- Modern web browser with Web Audio API support
 
 ## Getting Started
 
@@ -58,94 +63,17 @@ The server will start and listen on the configured address. You should see outpu
 [INFO]  server started successfully
 ```
 
-## Protocol Specification
+### 4. Run the Frontend (Optional)
 
-The WebSocket relay uses a custom JSON protocol for frontend-to-backend communication and transparently translates to Ali's OpenAI-compatible API format.
+In a separate terminal:
 
-### Frontend Message Format
-
-All frontend messages follow this structure:
-
-```json
-{
-  "type": "config|audio_chunk|stop",
-  "payload": {...}
-}
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-#### Message Types
-
-##### 1. Config Message (`config`)
-
-Initialize the session with ASR configuration:
-
-```json
-{
-  "type": "config",
-  "payload": {
-    "modalities": ["text"],
-    "input_audio_format": "pcm",
-    "sample_rate": 16000,
-    "input_audio_transcription": {
-      "language": "zh"
-    },
-    "turn_detection": {
-      "type": "server_vad",
-      "threshold": 0.2,
-      "silence_duration_ms": 800
-    }
-  }
-}
-```
-
-Maps to Ali's `session.update` event.
-
-##### 2. Audio Chunk Message (`audio_chunk`)
-
-Send PCM audio data in base64-encoded format:
-
-```json
-{
-  "type": "audio_chunk",
-  "payload": {
-    "audio": "base64_encoded_pcm_data"
-  }
-}
-```
-
-- **audio**: Base64-encoded PCM audio chunk (typically 3200 bytes = ~0.1s at 16kHz/16-bit)
-- Must be valid base64 or request will be rejected
-
-Maps to Ali's `input_audio_buffer.append` event.
-
-##### 3. Stop Message (`stop`)
-
-Signal end of audio transmission:
-
-```json
-{
-  "type": "stop",
-  "payload": {}
-}
-```
-
-Maps to Ali's `input_audio_buffer.commit` event.
-
-### Frontend Response Format
-
-Responses from Ali are forwarded as transcript events:
-
-```json
-{
-  "type": "transcript",
-  "data": {
-    "text": "recognized text",
-    "status": "interim|final"
-  }
-}
-```
-
-- **status**: `interim` for ongoing recognition, `final` for completed transcription
+The frontend will be available at `http://localhost:5173` and will automatically connect to the backend WebSocket at `ws://localhost:8080/ws`.
 
 ## Endpoints
 
@@ -297,29 +225,36 @@ For more details, see [frontend/README.md](./frontend/README.md)
 .
 ├── cmd/
 │   └── server/
-│       └── main.go                    # Entry point
+│       └── main.go                 # Entry point
 ├── internal/
 │   ├── config/
-│   │   └── config.go                  # Configuration management
+│   │   └── config.go               # Configuration management
 │   ├── logger/
-│   │   └── logger.go                  # Logging utilities
+│   │   └── logger.go               # Logging utilities
 │   ├── websocket/
-│   │   ├── handler.go                 # WebSocket handler & client management
-│   │   ├── relay.go                   # Ali relay logic
-│   │   ├── relay_test.go              # Relay unit tests
-│   │   └── messages.go                # Message protocol definitions
+│   │   └── handler.go              # WebSocket handler
 │   └── server/
-│       └── server.go         # Server implementation
-├── frontend/                 # Vue 3 + Vite + TypeScript frontend
+│       └── server.go               # Server implementation
+├── frontend/                        # Vue 3 frontend app
 │   ├── src/
+│   │   ├── components/
+│   │   │   └── MicrophoneCapture.vue
+│   │   ├── services/
+│   │   │   ├── microphoneService.js
+│   │   │   └── websocketService.js
+│   │   ├── utils/
+│   │   │   ├── pcm.js
+│   │   │   └── pcm.test.js
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── index.html
 │   ├── package.json
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── README.md
+│   ├── vite.config.js
+│   └── vitest.config.js
 ├── go.mod
 ├── go.sum
 ├── .env.example
-├── test.py                            # Python test client
+├── ARCHITECTURE.md
 └── README.md
 ```
 
@@ -343,54 +278,22 @@ go get <package-url>
 
 ### Running Tests
 
-Unit tests for message translation are included:
-
+Backend tests:
 ```bash
 go test ./...
 ```
 
-## Running Backend and Frontend Together
-
-To run the full application locally:
-
-### Terminal 1: Backend Server
-
-```bash
-# Set up environment
-cp .env.example .env
-# Edit .env with your Aliyun API credentials
-
-# Run the Go backend
-go run ./cmd/server
-```
-
-You should see:
-```
-[INFO]  loaded configuration:
-[INFO]    APIKey: sk-****-****
-[INFO]    BaseURL: wss://dashscope.aliyuncs.com/api-ws/v1/realtime
-[INFO]    Model: qwen3-asr-flash-realtime
-[INFO]    ListenAddr: localhost:8080
-[INFO]  server started successfully
-```
-
-### Terminal 2: Frontend Application
-
+Frontend tests:
 ```bash
 cd frontend
-npm install
-npm run dev
+npm test
 ```
 
-You should see:
+Frontend tests with UI:
+```bash
+cd frontend
+npm run test:ui
 ```
-  VITE v4.4.9  ready in 123 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  press h to show help
-```
-
-Open your browser to `http://localhost:5173` - the frontend will automatically connect to the backend.
 
 ## Troubleshooting
 
@@ -428,7 +331,20 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-## Next Steps
+## Features Implemented
+
+- ✅ Vue 3 microphone capture component with real-time UI
+- ✅ WebSocket connection management with auto-reconnect
+- ✅ PCM audio processing (16kHz mono, 16-bit conversion)
+- ✅ Audio resampling using linear interpolation
+- ✅ Base64 encoding of audio chunks
+- ✅ Real-time transcript display
+- ✅ Volume meter and audio statistics
+- ✅ Permission handling with user-friendly errors
+- ✅ Comprehensive test suite for PCM utilities
+- ✅ Responsive, beautiful UI with status indicators
+
+## Next Steps (Backend)
 
 - [ ] Implement proxy forwarding to Aliyun API
 - [ ] Add message routing and transformation
@@ -441,9 +357,13 @@ npm install
 
 ## References
 
+- [ARCHITECTURE.md](./ARCHITECTURE.md): Detailed system architecture and design documentation
+- [frontend/README.md](./frontend/README.md): Frontend-specific documentation and troubleshooting
 - [Aliyun DashScope Documentation](https://help.aliyun.com/zh/model-studio)
 - [Qwen Real-time API Guide](https://help.aliyun.com/zh/model-studio/user-guide/qwen-realtime-api)
 - [Gorilla WebSocket](https://github.com/gorilla/websocket)
+- [Vue 3 Documentation](https://vuejs.org/)
+- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 
 ## License
 
