@@ -58,6 +58,95 @@ The server will start and listen on the configured address. You should see outpu
 [INFO]  server started successfully
 ```
 
+## Protocol Specification
+
+The WebSocket relay uses a custom JSON protocol for frontend-to-backend communication and transparently translates to Ali's OpenAI-compatible API format.
+
+### Frontend Message Format
+
+All frontend messages follow this structure:
+
+```json
+{
+  "type": "config|audio_chunk|stop",
+  "payload": {...}
+}
+```
+
+#### Message Types
+
+##### 1. Config Message (`config`)
+
+Initialize the session with ASR configuration:
+
+```json
+{
+  "type": "config",
+  "payload": {
+    "modalities": ["text"],
+    "input_audio_format": "pcm",
+    "sample_rate": 16000,
+    "input_audio_transcription": {
+      "language": "zh"
+    },
+    "turn_detection": {
+      "type": "server_vad",
+      "threshold": 0.2,
+      "silence_duration_ms": 800
+    }
+  }
+}
+```
+
+Maps to Ali's `session.update` event.
+
+##### 2. Audio Chunk Message (`audio_chunk`)
+
+Send PCM audio data in base64-encoded format:
+
+```json
+{
+  "type": "audio_chunk",
+  "payload": {
+    "audio": "base64_encoded_pcm_data"
+  }
+}
+```
+
+- **audio**: Base64-encoded PCM audio chunk (typically 3200 bytes = ~0.1s at 16kHz/16-bit)
+- Must be valid base64 or request will be rejected
+
+Maps to Ali's `input_audio_buffer.append` event.
+
+##### 3. Stop Message (`stop`)
+
+Signal end of audio transmission:
+
+```json
+{
+  "type": "stop",
+  "payload": {}
+}
+```
+
+Maps to Ali's `input_audio_buffer.commit` event.
+
+### Frontend Response Format
+
+Responses from Ali are forwarded as transcript events:
+
+```json
+{
+  "type": "transcript",
+  "data": {
+    "text": "recognized text",
+    "status": "interim|final"
+  }
+}
+```
+
+- **status**: `interim` for ongoing recognition, `final` for completed transcription
+
 ## Endpoints
 
 ### WebSocket Endpoint
@@ -73,11 +162,11 @@ const ws = new WebSocket('ws://localhost:8080/ws');
 
 ws.onopen = () => {
     console.log('Connected to proxy');
-    // Send session.update event
+    
+    // Step 1: Send config
     ws.send(JSON.stringify({
-        event_id: "event_123",
-        type: "session.update",
-        session: {
+        type: "config",
+        payload: {
             modalities: ["text"],
             input_audio_format: "pcm",
             sample_rate: 16000,
@@ -91,10 +180,28 @@ ws.onopen = () => {
             }
         }
     }));
+    
+    // Step 2: Send audio chunks
+    const audioChunk = btoa('...PCM bytes...');
+    ws.send(JSON.stringify({
+        type: "audio_chunk",
+        payload: {
+            audio: audioChunk
+        }
+    }));
+    
+    // Step 3: Signal end
+    ws.send(JSON.stringify({
+        type: "stop",
+        payload: {}
+    }));
 };
 
 ws.onmessage = (event) => {
-    console.log('Received:', JSON.parse(event.data));
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'transcript') {
+        console.log(`[${msg.data.status}] ${msg.data.text}`);
+    }
 };
 
 ws.onerror = (error) => {
@@ -190,14 +297,17 @@ For more details, see [frontend/README.md](./frontend/README.md)
 .
 ├── cmd/
 │   └── server/
-│       └── main.go           # Entry point
+│       └── main.go                    # Entry point
 ├── internal/
 │   ├── config/
-│   │   └── config.go         # Configuration management
+│   │   └── config.go                  # Configuration management
 │   ├── logger/
-│   │   └── logger.go         # Logging utilities
+│   │   └── logger.go                  # Logging utilities
 │   ├── websocket/
-│   │   └── handler.go        # WebSocket handler
+│   │   ├── handler.go                 # WebSocket handler & client management
+│   │   ├── relay.go                   # Ali relay logic
+│   │   ├── relay_test.go              # Relay unit tests
+│   │   └── messages.go                # Message protocol definitions
 │   └── server/
 │       └── server.go         # Server implementation
 ├── frontend/                 # Vue 3 + Vite + TypeScript frontend
@@ -209,8 +319,21 @@ For more details, see [frontend/README.md](./frontend/README.md)
 ├── go.mod
 ├── go.sum
 ├── .env.example
+├── test.py                            # Python test client
 └── README.md
 ```
+
+### Key Components
+
+- **handler.go**: Manages WebSocket connections from clients, creates relays
+- **relay.go**: Bidirectional relay between frontend client and Ali ASR service
+  - `ProcessClientMessage()`: Translates frontend messages to Ali protocol
+  - `aliReadPump()`: Receives messages from Ali and forwards to client
+  - `aliWritePump()`: Sends queued Ali messages
+  - `heartbeatPump()`: Keeps connection alive with periodic pings
+  - Auto-reconnection with exponential backoff
+- **messages.go**: Protocol definitions for both frontend and Ali APIs
+- **relay_test.go**: Comprehensive unit tests for message translation
 
 ### Adding Dependencies
 
@@ -218,7 +341,9 @@ For more details, see [frontend/README.md](./frontend/README.md)
 go get <package-url>
 ```
 
-### Running Tests (When Available)
+### Running Tests
+
+Unit tests for message translation are included:
 
 ```bash
 go test ./...
